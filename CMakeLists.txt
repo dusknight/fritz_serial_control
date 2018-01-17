@@ -1,7 +1,10 @@
 cmake_minimum_required(VERSION 2.8)
 project(fritz_control)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+# note that -std=c++NN will disable some functions, see details in https://stackoverflow.com/questions/38139631/posix-visible-is-ruining-my-pthreading-on-cygwin
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11")
+
 include_directories(include)
 
 if(APPLE)
@@ -16,11 +19,13 @@ if(APPLE)
 
 elseif(UNIX)
     # If Linux, add rt and pthread
-    catkin_package(
-            LIBRARIES ${PROJECT_NAME}
-            INCLUDE_DIRS include
-            DEPENDS rt pthread
-    )
+#    catkin_package(
+#            LIBRARIES ${PROJECT_NAME}
+#            INCLUDE_DIRS include
+#            DEPENDS rt pthread
+#    )
+    find_package(Threads REQUIRED)
+    include(Packages/FindRT.cmake)
 else()
     # Otherwise normal call
     catkin_package(
@@ -53,7 +58,7 @@ endif()
 #add_library(${PROJECT_NAME} ${serial_SRCS})
 
 
-set(SOURCE_FILES src/main.cpp src/serial.cpp src/Serial.cpp src/Serial.h)
+set(SOURCE_FILES src/main.cpp src/Serial.cpp)
 set(ALL_SOURCE_FILES ${SOURCE_FILES} ${serial_SRCS})
 add_executable(fritz_control ${ALL_SOURCE_FILES})
 
@@ -61,6 +66,7 @@ if(APPLE)
     target_link_libraries(fritz_control ${FOUNDATION_LIBRARY} ${IOKIT_LIBRARY})
 elseif(UNIX)
     target_link_libraries(fritz_control rt pthread)
+    # TARGET_LINK_LIBRARIES ( test ${CMAKE_THREAD_LIBS_INIT} )
 else()
     target_link_libraries(fritz_control setupapi)
 endif()

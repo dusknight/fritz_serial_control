@@ -7,9 +7,18 @@
 
 #include "serial/serial.h"
 #include <string>
+#include <vector>
 #include <cstdint>
 
-enum class byte : std::uint8_t {};
+//enum class byte : std::uint8_t {};
+typedef uint8_t byte;
+
+typedef enum {
+    Checked = 0,
+    Fail = 1,
+} CheckState;
+
+//void convStringVector(const std::string & s, std::vector<byte> & v);
 
 class Serial {
 private:
@@ -42,6 +51,7 @@ private:
     static const int waitTimeOut = 50;
     static const int readTimeOut = 100;  // TODO: check
 
+
 public:
 
     Serial();
@@ -53,18 +63,19 @@ public:
 
     void Close();
 
-    void DoTest(Qt::CheckState state, int min, int max, int pin, int val);
+    void DoTest(CheckState state, int min, int max, int pin, int val);
 
     int TestSerialOld();
-    bool SendPacketOld(QByteArray data, int slen, int rlen);
-    void ReadOld(QByteArray data);
+//    bool SendPacketOld(std::vector<byte> data, int slen, int rlen);
+//    void ReadOld(std::vector<byte> data);
+    void Read_(std::vector<byte> buffer, int len);
 
     int TestSerial();
-    bool SendPacket(QByteArray data, int slen, int rlen);
+    bool SendPacket(std::vector<byte> data, int slen, int rlen);
     void handleReadyRead();
-    void handleError(QSerialPort::SerialPortError serialPortError);
+    void handleError();
 
-    int GetVersion(QByteArray data);
+    int GetVersion(std::vector<byte> data);
 
     int GetVersion();
 
@@ -86,9 +97,9 @@ public:
 
     void SendCommand(int cmd, int pin, uint8_t value);
 
-    void SendCommand(int cmd, QList<int> dat);
+    void SendCommand(int cmd, std::vector<int> dat);
 
-    void SendCommand(int cmd, QByteArray dat);
+    void SendCommand(int cmd, std::vector<byte> dat);
 
 //    QSerialPort *arduino;
     serial::Serial *arduino;
