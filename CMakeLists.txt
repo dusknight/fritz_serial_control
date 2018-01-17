@@ -16,11 +16,13 @@ if(APPLE)
 
 elseif(UNIX)
     # If Linux, add rt and pthread
-    catkin_package(
-            LIBRARIES ${PROJECT_NAME}
-            INCLUDE_DIRS include
-            DEPENDS rt pthread
-    )
+#    catkin_package(
+#            LIBRARIES ${PROJECT_NAME}
+#            INCLUDE_DIRS include
+#            DEPENDS rt pthread
+#    )
+    find_package(Threads REQUIRED)
+    include(Packages/FindRT.cmake)
 else()
     # Otherwise normal call
     catkin_package(
@@ -61,6 +63,7 @@ if(APPLE)
     target_link_libraries(fritz_control ${FOUNDATION_LIBRARY} ${IOKIT_LIBRARY})
 elseif(UNIX)
     target_link_libraries(fritz_control rt pthread)
+    # TARGET_LINK_LIBRARIES ( test ${CMAKE_THREAD_LIBS_INIT} )
 else()
     target_link_libraries(fritz_control setupapi)
 endif()

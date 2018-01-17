@@ -3,26 +3,23 @@
 //
 
 #include "Serial.h"
-#include "serial/serial.h"
-#include <string>
-#include <errno.h>
-#include <fcntl.h>
-#include <string.h>
-#include <termios.h>
-#include <unistd.h>
-#include <sys/ioctl.h>
-#include <sys/types.h>
-#include <sys/time.h>
-#include <sys/select.h>
-#include <sched.h>
-
-//#include <QtSerialPort/QSerialPort>
-//#include <QtSerialPort/QSerialPortInfo>
-//#include <QList>
-//#include <QDebug>
+#include <iostream>
+#include <cmath>
+//#include "serial/serial.h"
+//#include <string>
+//#include <vector>
+//#include <errno.h>
+//#include <fcntl.h>
+//#include <string.h>
+//#include <termios.h>
+//#include <unistd.h>
+//#include <sys/ioctl.h>
+//#include <sys/types.h>
+//#include <sys/time.h>
+//#include <sys/select.h>
+//#include <sched.h>
 
 Serial::Serial()
-//        : QObject()
 {
 
     foundBoard = false;
@@ -40,6 +37,14 @@ Serial::~Serial()
     Close();
 }
 
+static void Serial::convStringVector(const std::string & s, std::vector<byte> & v)
+{
+    v.resize(s.length());
+    for(int i=0; i<s.length(); ++i){
+        v[i] = (byte)s[i];
+    }
+}
+
 bool Serial::IsConnected()
 {
     return foundBoard;
@@ -53,58 +58,60 @@ int Serial::TestSerialOld()
         return -1;
     }
 
+    std::vector<byte> sendData;
+    std::vector<byte> requestData;
 
-    QByteArray sendData;
-    QByteArray requestData;
-
-    sendData[0] = 128;
-    sendData[1] = 0;
+    sendData[0] = (byte)128;
+    sendData[1] = (byte)0;
 
     if(arduino->isOpen())  // TODO: check writable status, isWritable() in QT5
     {
         arduino->write(sendData);
-        if (!arduino->waitForBytesWritten(waitTimeOut))
-            return version;
-
-        if (arduino->waitForReadyRead(waitTimeOut))
-        {
-            // read request
-            requestData = arduino->readAll();
-            while (arduino->waitReadable())  // TODO: check 100 ms (timeout time)
-                requestData += arduino->readAll();
-
-            //QMessageBox::information(this, "Information", requestData.toUpper());
-            version = GetVersion(requestData);
-        }
+//        if (!arduino->waitForBytesWritten(waitTimeOut))
+//            return version;
+//
+//        if (arduino->waitForReadyRead(waitTimeOut))
+//        {
+//            // read request
+//            requestData = arduino->readAll();
+//            while (arduino->waitReadable())  // TODO: check 100 ms (timeout time)
+//                requestData += arduino->readAll();
+//
+//            //QMessageBox::information(this, "Information", requestData.toUpper());
+//            version = GetVersion(requestData);
+//        }
+        std::string requestData_str;
+        arduino->read(requestData_str,7);
+        convStringVector(requestData_str, requestData);
+        version = GetVersion(requestData);
+        std::cout<<"Get Version: "<<version<<std::endl;
     }
-
     return version;
 }
 
 int Serial::Open()
 {
-    // open and configure the serialport
+    // open and configure the serial port
+    arduino->close();
+
     arduino->setPort(arduino_port_name);
-    arduino->open()
-    if( !arduino->isOpen() )
-    {
-        qDebug()<<"Unable to open serial port";
-    }
-    I::sleep(2);
+//    I::sleep(2);
     arduino->setBaudrate(BaudRate);
 //    arduino->setDataBits(QSerialPort::Data8);
     arduino->setBytesize(serial::eightbits);
     arduino->setParity(serial::parity_none);
     arduino->setStopbits(serial::stopbits_one);
     arduino->setFlowcontrol(serial::flowcontrol_none);
-
-    if(arduino->isOpen())
+    arduino->open();
+    if( !arduino->isOpen() )
+        std::cerr<<"Unable to open serial port";
+    else
         arduino_is_available = true;
 
     sonarValue = 9999.0;
     version = -1;
 
-    connect(arduino, &QSerialPort::readyRead, this, &Serial::handleReadyRead);
+//    connect(arduino, &QSerialPort::readyRead, this, &Serial::handleReadyRead);
     //connect(arduino, &QSerialPort::serialPortError, this, &Serial::handleError);
     //connect(arduino, static_cast<void (QSerialPort::*)(QSerialPort::SerialPortError)>(&QSerialPort::error),this, &Serial::handleError);
     //connect(&m_timer, &QTimer::timeout, this, &SerialPortReader::handleTimeout);
@@ -117,9 +124,7 @@ int Serial::Open()
 void Serial::Close()
 {
     if(arduino->isOpen())
-    {
         arduino->close();
-    }
     arduino_is_available = false;
     foundBoard = false;
 }
@@ -143,8 +148,8 @@ int Serial::TestSerial()
     }
 
 
-    QByteArray sendData;
-    QByteArray requestData;
+    std::vector<byte> sendData;
+    std::vector<byte> requestData;
 
     sendData[0] = 128;
     sendData[1] = 0;
@@ -152,18 +157,19 @@ int Serial::TestSerial()
     if(arduino->isOpen())
     {
         arduino->write(sendData);
-        arduino->waitForBytesWritten(waitTimeOut);
+//        arduino->waitForBytesWritten(waitTimeOut);
     }
 
     return version;
 }
 
-bool Serial::SendPacket(QByteArray buffer, int slen, int rlen)
+bool Serial::SendPacket(std::vector<byte> buffer, int slen, int rlen)
 {
     unsigned int command;
     int length;
 
-    QByteArray sendData;
+    std::vector<byte> sendData;
+    sendData.resize(9);
     int idx = 0;
     int crc;
     //int high;
@@ -177,19 +183,19 @@ bool Serial::SendPacket(QByteArray buffer, int slen, int rlen)
     //   0
     // 106 - msb position
 
-    command = crc = buffer[0];    // Command
+    crc = command = buffer[0];    // Command
     length = slen - 2;
     if( length < 0 )
         length = 0;
 
-    sendData[idx++] = command;
-    sendData[idx++] = (quint8) (length & 127);
-    crc ^= (quint8) (length & 127);
+    sendData[idx++] = (byte)command;
+    sendData[idx++] = (byte) (length & 127);
+    crc ^= (byte) (length & 127);
 
     if((command & 127) >= 32)
     {
-        sendData[idx++] = (quint8) (length >> 7);
-        crc ^= (quint8) (length >> 7);
+        sendData[idx++] = (byte) (length >> 7);
+        crc ^= (byte) (length >> 7);
     }
 
     for(int i = 1; i < slen; i++)
@@ -198,7 +204,7 @@ bool Serial::SendPacket(QByteArray buffer, int slen, int rlen)
         crc ^= buffer[i];
     }
 
-    sendData[9] = crc;
+    sendData[9] = (byte)crc;
 
     // After CRC
     // 131 - Command
@@ -213,37 +219,44 @@ bool Serial::SendPacket(QByteArray buffer, int slen, int rlen)
 
     if(arduino->isOpen())
     {
-        arduino->write(sendData,9);
-        arduino->waitForBytesWritten(waitTimeOut);
+        arduino->write(sendData);
+//        arduino->waitForBytesWritten(waitTimeOut);
         //qWarning() << "Send: " << QString(sendData.toHex()) << endl;
         return true;
     }
-    qWarning() << "Failed to write" << endl;
+    std::cerr << "Failed to write" << std::endl;
     return false;
 }
 
 void Serial::handleReadyRead()
 {
-    I::msleep(10);
-    QByteArray requestData = arduino->readAll();
-    while(arduino->bytesAvailable())
+//    I::msleep(10);
+//    std::vector<byte> requestData = arduino->readAll();
+    std::string requestDataStr = arduino->readline();
+//    std::vector<byte> requestData = arduino->readline();
+    while(arduino->waitReadable())
     {
-        I::msleep(2);
-        requestData = requestData + arduino->readAll();
+//        I::msleep(2);
+        //todo TIME SLEEP
+        requestDataStr += arduino->readline();
+//        requestData = requestData + arduino->readAll();
     }
 
+    std::vector<byte> requestData;
+    convStringVector(requestDataStr, requestData);
 
     //qWarning() << "Rec:  " << QString(requestData.toHex()) << endl;
 
     while(true)
     {
-        if(((uchar)requestData[0] & 127) == 'A')
+        if((requestData[0] & 127) == 'A')
         {
             version = GetVersion(requestData);
-            qWarning() << "Version: " << version << endl;
-            requestData.remove(0,7);
+            std::clog << "Version: " << version << std::endl;
+//            requestData.remove(0,7);
+            requestData.erase(requestData.begin(), requestData.begin()+7);
         }
-        else if(((uchar)requestData[0] & 127) == ARDUINO_GET_SONAR)
+        else if((requestData[0] & 127) == ARDUINO_GET_SONAR)
         {
             int x = ((int)requestData[3] | (requestData[4] << 7));
             // convert distance to cm
@@ -253,26 +266,29 @@ void Serial::handleReadyRead()
 
             //qWarning() << "Rec:  " << QString(requestData.toHex()) << endl;
             //qWarning() << "Sonar: " << sonarValue << endl;
-            requestData.remove(0,9);
+//            requestData.remove(0,9);
+            requestData.erase(requestData.begin(), requestData.begin()+9);
         }
-        else if(((uchar)requestData[0] & 127) == ARDUINO_SET_SERVO)
+        else if((requestData[0] & 127) == ARDUINO_SET_SERVO)
         {
-            requestData.remove(0,9);
+//            requestData.remove(0,9);/
+            requestData.erase(requestData.begin(), requestData.begin()+9);
         }
         else
-            requestData.remove(0,9);
+//            requestData.remove(0,9);
+            requestData.erase(requestData.begin(), requestData.begin()+9);
 
-        if(requestData.length()<9)
+        if(requestData.size()<9)
             break;
     }
 }
 
-void Serial::handleError(QSerialPort::SerialPortError serialPortError)
+void Serial::handleError()
 {
     arduino->flush();
 }
 
-int Serial::GetVersion(QByteArray buf)
+int Serial::GetVersion(std::vector<byte> buf)
 {
 
     char b1 = buf[0];
@@ -287,14 +303,9 @@ int Serial::GetVersion(QByteArray buf)
 
     if ((b1 == 'A') && (b2 == 'R') && (b3 == 'D') && (b4 == 'U'))
     {
-        if (version < 4)
-        {
-            foundBoard = false;
-        }
-        else
-        {
-            foundBoard = true;
-        }
+        foundBoard = (version >= 4);
+//        if (!foundBoard)info = "Fritz found but firmware version is too old!\n";
+        // Found "+verion+(std::string)" but this application requires 3 and above."
     }
     else
     {
@@ -304,110 +315,121 @@ int Serial::GetVersion(QByteArray buf)
     return version;
 }
 
-bool Serial::SendPacketOld(QByteArray buffer, int slen, int rlen)
+//bool Serial::SendPacketOld(std::vector<byte> buffer, int slen, int rlen)
+//{
+//    unsigned int command;
+//    int length;
+//
+//    std::vector<byte> sendData;
+//    int idx = 0;
+//    int crc;
+//    //int high;
+//    // Before CRC
+//    // 131 - Command
+//    //   2 - pin?
+//    // 102 - lsb position
+//    //  11
+//    //   0
+//    //   0
+//    //   0
+//    // 106 - msb position
+//
+//    crc = command = buffer[0];    // Command
+//    length = slen - 2;
+//    if( length < 0 )
+//        length = 0;
+//
+//    sendData[idx++] = (byte) command;
+//    sendData[idx++] = (byte) (length & 127);
+//    crc ^= (byte) (length & 127);
+//
+//    if((command & 127) >= 32)
+//    {
+//        sendData[idx++] = (byte) (length >> 7);
+//        crc ^= (byte) (length >> 7);
+//    }
+//
+//    for(int i = 1; i < slen; i++)
+//    {
+//        sendData[idx++] = buffer[i];
+//        crc ^= buffer[i];
+//    }
+//
+//    sendData[9] = (byte)crc;
+//
+//    // After CRC
+//    // 131 - Command
+//    //   6 - CRC
+//    //   2 - pin
+//    // 102 - lsb position
+//    //  11
+//    //   0
+//    //   0
+//    //   0
+//    // 106
+//    byte sendBuffer_[9];
+//    for (int j = 0; j < 9; ++j) {
+//        sendBuffer_[j] = sendData[j];
+//    }
+//
+//    std::vector<byte> requestData;
+//    if(arduino->isOpen())
+//    {
+//        arduino->write(sendBuffer_,9);
+////        if (!arduino->waitForBytesWritten(waitTimeOut))
+////            return false;
+//
+////        if (arduino->waitForReadyRead(waitTimeOut))
+//        if (arduino->waitReadable())
+//        {
+//            // read request
+//            requestData = arduino->read;  // TODO: fix
+//            //while (arduino->waitForReadyRead(100))
+//            //requestData += arduino->readAll();
+//
+//            if((requestData[0] & 127) == ARDUINO_GET_SONAR)
+//            {
+//                int x = ((int)requestData[3] | (requestData[4] << 7));  // TODO: check
+//                // convert distance to cm
+//                sonarValue = (float)((float)x / 29.10f);
+//            }
+//        }
+//        return true;
+//    }
+//    return false;
+//}
+
+//void Serial::ReadOld(std::vector<byte> requestData)
+//{
+//    if (arduino->waitForReadyRead(waitTimeOut))
+//    {
+//        // read request
+//        requestData = arduino->readAll();
+//        while (arduino->waitForReadyRead(100))
+//            requestData += arduino->readAll();
+//
+//        if(((unsigned char)requestData[0] & 127) == ARDUINO_GET_SONAR)
+//        {
+//            int x = ((int)requestData[3] | (requestData[4] << 7));
+//            // convert distance to cm
+//            sonarValue = (float)((float)x / 29.10f);
+//        }
+//    }
+//}
+
+
+void Serial::Read_(std::vector<byte> buffer, int len)
 {
-    unsigned int command;
-    int length;
-
-    QByteArray sendData;
-    int idx = 0;
-    int crc;
-    //int high;
-    // Before CRC
-    // 131 - Command
-    //   2 - pin?
-    // 102 - lsb position
-    //  11
-    //   0
-    //   0
-    //   0
-    // 106 - msb position
-
-    command = crc = buffer[0];    // Command
-    length = slen - 2;
-    if( length < 0 )
-        length = 0;
-
-    sendData[idx++] = command;
-    sendData[idx++] = (quint8) (length & 127);
-    crc ^= (quint8) (length & 127);
-
-    if((command & 127) >= 32)
-    {
-        sendData[idx++] = (quint8) (length >> 7);
-        crc ^= (quint8) (length >> 7);
-    }
-
-    for(int i = 1; i < slen; i++)
-    {
-        sendData[idx++] = buffer[i];
-        crc ^= buffer[i];
-    }
-
-    sendData[9] = crc;
-
-    // After CRC
-    // 131 - Command
-    //   6 - CRC
-    //   2 - pin
-    // 102 - lsb position
-    //  11
-    //   0
-    //   0
-    //   0
-    // 106
-
-    QByteArray requestData;
-    if(arduino->isOpen())
-    {
-        arduino->write(sendData,9);
-        if (!arduino->waitForBytesWritten(waitTimeOut))
-            return false;
-
-        if (arduino->waitForReadyRead(waitTimeOut))
-        {
-            // read request
-            requestData = arduino->readAll();
-            //while (arduino->waitForReadyRead(100))
-            //requestData += arduino->readAll();
-
-            if(((uchar)requestData[0] & 127) == ARDUINO_GET_SONAR)
-            {
-                int x = ((int)requestData[3] | (requestData[4] << 7));
-                // convert distance to cm
-                sonarValue = (float)((float)x / 29.10f);
-            }
-        }
-        return true;
-    }
-    return false;
+    arduino->read(buffer, len);
 }
 
-void Serial::ReadOld(QByteArray requestData)
-{
-    if (arduino->waitForReadyRead(waitTimeOut))
-    {
-        // read request
-        requestData = arduino->readAll();
-        while (arduino->waitForReadyRead(100))
-            requestData += arduino->readAll();
-
-        if(((uchar)requestData[0] & 127) == ARDUINO_GET_SONAR)
-        {
-            int x = ((int)requestData[3] | (requestData[4] << 7));
-            // convert distance to cm
-            sonarValue = (float)((float)x / 29.10f);
-        }
-    }
-}
-
-void Serial::DoTest( Qt::CheckState state, int min, int max, int pin, int val)
+void Serial::DoTest(CheckState state, int min, int max, int pin, int val)
 {
     //range min - max maps to 0 - 100 so val maps to min + val * ( range / 100 )
-    float range = max - min;
-    int pos = (int)min + ( val * range/100);
+    double range = max - min;
+    auto pos = (int)nearbyint(min + (val * range/100));
 
-    if(state == Qt::Checked)
+    if(state == Checked)
     {
         SetServo(pin, pos);
     }
@@ -425,82 +447,82 @@ void Serial::SetServo(int pin, int value)
 
 void Serial::SendCommand(int cmd)
 {
-    QByteArray buffer;
+    std::vector<byte> buffer;
     buffer.resize(3);
 
-    buffer[0] = (quint8)(128 | cmd);
+    buffer[0] = (byte)(128 | cmd);
 
     SendPacket(buffer, 1, 1);
 }
 
 void Serial::SendCommand(int cmd, int pin)
 {
-    QByteArray buffer;
+    std::vector<byte> buffer;
     buffer.resize(3);
 
-    buffer[0] = (int8_t)(128 | cmd);
-    buffer[1] = (int8_t)(pin & 127);
-    buffer[2] = (int8_t)((buffer[0] ^ buffer[1] ^ 1) & 127);
+    buffer[0] = (byte)(128 | cmd);
+    buffer[1] = (byte)(pin & 127);
+    buffer[2] = (byte)((buffer[0] ^ buffer[1] ^ 1) & 127);
 
     SendPacket(buffer, 3, 2);
 }
 
 void Serial::SendCommand(int cmd, int pin, int value)
 {
-    QByteArray buffer;
+    std::vector<byte> buffer;
 
     buffer.resize(8);
-    buffer[0] = (quint8)(128 | cmd);
-    buffer[1] = (quint8)(pin & 127);
-    buffer[2] = (quint8)(value & 127);
-    buffer[3] = (quint8)((value >> 7) & 127);
-    buffer[4] = (quint8)((value >> 14) & 127);
-    buffer[5] = (quint8)((value >> 21) & 127);
-    buffer[6] = (quint8)((value >> 28) & 127);
-    buffer[7] = (quint8)((buffer[0] ^ buffer[1] ^ buffer[2] ^ buffer[3] ^ buffer[4] ^ buffer[5] ^ buffer[6] ^ 6) & 127);
+    buffer[0] = (byte)(128 | cmd);
+    buffer[1] = (byte)(pin & 127);
+    buffer[2] = (byte)(value & 127);
+    buffer[3] = (byte)((value >> 7) & 127);
+    buffer[4] = (byte)((value >> 14) & 127);
+    buffer[5] = (byte)((value >> 21) & 127);
+    buffer[6] = (byte)((value >> 28) & 127);
+    buffer[7] = (byte)((buffer[0] ^ buffer[1] ^ buffer[2] ^ buffer[3] ^ buffer[4] ^ buffer[5] ^ buffer[6] ^ 6) & 127);
 
     SendPacket(buffer, 8, 2);
 }
 
 void Serial::SendCommand(int cmd, int pin, short value)
 {
-    QByteArray buffer;
+    std::vector<byte> buffer;
 
     buffer.resize(5);
-    buffer[0] = (quint8)(128 | cmd);
-    buffer[1] = (quint8)(pin & 127);
-    buffer[2] = (quint8)(value & 127);
-    buffer[3] = (quint8)((value >> 7) & 127);
-    buffer[4] = (quint8)((buffer[0] ^ buffer[1] ^ buffer[2] ^ buffer[3] ^ 3) & 127);
+    buffer[0] = (byte)(128 | cmd);
+    buffer[1] = (byte)(pin & 127);
+    buffer[2] = (byte)(value & 127);
+    buffer[3] = (byte)((value >> 7) & 127);
+    buffer[4] = (byte)((buffer[0] ^ buffer[1] ^ buffer[2] ^ buffer[3] ^ 3) & 127);
 
     SendPacket(buffer, 5, 2);
 }
 
-void Serial::SendCommand(int cmd, int pin, quint8 value)
+void Serial::SendCommand(int cmd, int pin, byte value)
 {
-    QByteArray buffer;
+    std::vector<byte> buffer;
 
     buffer.resize(4);
-    buffer[0] = (quint8)(128 | cmd);
-    buffer[1] = (quint8)(pin & 127);
-    buffer[2] = (quint8)(value & 127);
-    buffer[3] = (quint8)((buffer[0] ^ buffer[1] ^ buffer[2] ^ 2) & 127);
+    buffer[0] = (byte)(128 | cmd);
+    buffer[1] = (byte)(pin & 127);
+    buffer[2] = (byte)(value & 127);
+    buffer[3] = (byte)((buffer[0] ^ buffer[1] ^ buffer[2] ^ 2) & 127);
 
     SendPacket(buffer, 4, 2);
 }
 
-void Serial::SendCommand(int cmd, QList<int> dat)
+void Serial::SendCommand(int cmd, std::vector<int> dat)
 {
-    QByteArray buffer;
+    std::vector<byte> buffer;
 
     buffer.resize(4096);
-    buffer[0] = (quint8)(128 | cmd);
+    buffer[0] = (byte)(128 | cmd);
 
     int i, j;
     for (j = 1, i = 0; (i < dat.size()); i++)
     {
-        buffer[j++] = (quint8)(dat[i] & 127);
-        buffer[j++] = (quint8)((dat[i] >> 7) & 127);
+        buffer[j++] = (byte)(dat[i] & 127);
+        buffer[j++] = (byte)((dat[i] >> 7) & 127);
     }
 
     int crc = buffer[0];
@@ -508,28 +530,28 @@ void Serial::SendCommand(int cmd, QList<int> dat)
     crc ^= (j - 1) >> 7;
     for (i = 1; i < j; i++) crc ^= buffer[i];
 
-    buffer[j++] = (quint8)(crc & 127);
+    buffer[j++] = (byte)(crc & 127);
 
     SendPacket(buffer, j, 1);
 }
 
-void Serial::SendCommand(int cmd, QByteArray dat)
+void Serial::SendCommand(int cmd, std::vector<byte> dat)
 {
-    QByteArray buffer;
+    std::vector<byte> buffer;
 
     buffer.resize(4096);
-    buffer[0] = (quint8)(128 | cmd);
+    buffer[0] = (byte)(128 | cmd);
 
     int i, j;
     for (j = 1, i = 0; (i < dat.size()); i++)
-        buffer[j++] = (quint8)dat[i];
+        buffer[j++] = (byte)dat[i];
 
     int crc = buffer[0];
     crc ^= (j - 1) & 127;
     crc ^= (j - 1) >> 7;
     for (i = 1; i < j; i++) crc ^= buffer[i];
 
-    buffer[j++] = (quint8)(crc & 127);
+    buffer[j++] = (byte)(crc & 127);
 
     SendPacket(buffer, j, 1);
 }
