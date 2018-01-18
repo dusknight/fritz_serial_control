@@ -48,8 +48,11 @@ private:
 
     int version;
 
-    static const int waitTimeOut = 50;
-    static const int readTimeOut = 100;  // TODO: check
+//    static const int waitTimeOut = 50;  // 1000 (write, C#)
+//    static const int readTimeOut = 100;  // 5000 (read) TODO: check
+    static const int writeTimeOut = 1000;
+    static const int readTimeOut = 5000;
+    static const int SEND_QUEUE_MAX = 4096;
 
 
 public:
@@ -72,6 +75,7 @@ public:
 
     int TestSerial();
     bool SendPacket(std::vector<byte> data, int slen, int rlen);
+    bool SendPacketOld(std::vector<byte> buffer, int slen, int rlen);
     void handleReadyRead();
     void handleError();
 
@@ -105,6 +109,7 @@ public:
     serial::Serial *arduino;
     std::string arduino_port_name;
     bool arduino_is_available;
+    serial::Timeout timeout;
 
 
 };

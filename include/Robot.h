@@ -136,7 +136,7 @@ public:
         triggerPosition = 0;
     }
 
-    RobotState(bool empty)
+    explicit RobotState(bool empty)
     {
         leftHorizontalEye = -1;
         rightHorizontalEye = -1;
@@ -151,6 +151,8 @@ public:
         jaw = -1;
         neckTilt = -1;
         neckTwist = -1;
+        position = 0;
+        triggerPosition = 0;
     }
 
     RobotState(const RobotState & r)
@@ -261,7 +263,7 @@ private:
 
 
 public:
-    Robot(Serial * serial);
+    explicit Robot(Serial * serial);
     ~Robot();
 
     void Reset();
@@ -277,9 +279,8 @@ public:
     void SetRight();
     void SetNeck(int angle);
 
-    void SpeakMessage(std::string msg);
-
-    void SpeakWord(std::string word);
+//    void SpeakMessage(std::string msg);
+//    void SpeakWord(std::string word);
 };
 
 

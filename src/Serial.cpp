@@ -30,14 +30,16 @@ void convStringVector(const std::string & s, std::vector<byte> & v)
 Serial::Serial()
 {
 
+    // TODO: set wait time
     foundBoard = false;
-
     arduino_is_available = true;
     arduino_port_name = "/dev/ttyUSB0";  // ttyACM0 for official Arduino Uno board, USB0 for CH340G chip
 
+    timeout = serial::Timeout(serial::Timeout::max(), readTimeOut, 0, writeTimeOut, 0);
     arduino = new serial::Serial();
+//    arduino->setTimeout(timeout);  // TODO
 
-    Open();
+//    Open();
 }
 
 Serial::~Serial()
@@ -63,26 +65,15 @@ int Serial::TestSerialOld()
     std::vector<byte> sendData;
     std::vector<byte> requestData;
 
+    sendData.resize(2);
     sendData[0] = (byte)128;
     sendData[1] = (byte)0;
 
-    if(arduino->isOpen())  // TODO: check writable status, isWritable() in QT5
+    if(arduino->isOpen())
     {
         arduino->write(sendData);
-//        if (!arduino->waitForBytesWritten(waitTimeOut))
-//            return version;
-//
-//        if (arduino->waitForReadyRead(waitTimeOut))
-//        {
-//            // read request
-//            requestData = arduino->readAll();
-//            while (arduino->waitReadable())  // TODO: check 100 ms (timeout time)
-//                requestData += arduino->readAll();
-//
-//            //QMessageBox::information(this, "Information", requestData.toUpper());
-//            version = GetVersion(requestData);
-//        }
         std::string requestData_str;
+        arduino->waitReadable();  // must wait for data
         arduino->read(requestData_str,7);
         convStringVector(requestData_str, requestData);
         version = GetVersion(requestData);
@@ -97,16 +88,16 @@ int Serial::Open()
     arduino->close();
 
     arduino->setPort(arduino_port_name);
-//    I::sleep(2);
     arduino->setBaudrate(BaudRate);
-//    arduino->setDataBits(QSerialPort::Data8);
     arduino->setBytesize(serial::eightbits);
     arduino->setParity(serial::parity_none);
     arduino->setStopbits(serial::stopbits_one);
     arduino->setFlowcontrol(serial::flowcontrol_none);
     arduino->open();
-    if( !arduino->isOpen() )
-        std::cerr<<"Unable to open serial port";
+    if( !arduino->isOpen() ){
+//        std::cerr<<"Unable to open serial port";
+        throw "Open serial port fail";
+    }
     else
         arduino_is_available = true;
 
@@ -143,30 +134,36 @@ int Serial::GetVersion()
 
 int Serial::TestSerial()
 {
-    version = -1;
+    int version = -1;
 
     if(!arduino_is_available){
         return -1;
     }
 
-
     std::vector<byte> sendData;
     std::vector<byte> requestData;
 
-    sendData[0] = 128;
-    sendData[1] = 0;
+    sendData.resize(2);
+    sendData[0] = (byte)128;
+    sendData[1] = (byte)0;
 
     if(arduino->isOpen())
     {
         arduino->write(sendData);
-//        arduino->waitForBytesWritten(waitTimeOut);
+        std::string requestData_str;
+//        arduino->waitReadable();  // must wait for data
+        arduino->read(requestData_str,7);
+//        requestData_str = arduino->readline();
+        while(arduino->waitReadable())
+            requestData_str += arduino->readline();
+        convStringVector(requestData_str, requestData);
+        version = GetVersion(requestData);
     }
-
     return version;
 }
 
 bool Serial::SendPacket(std::vector<byte> buffer, int slen, int rlen)
-{
+{  // just get rlen=2, do not wake the sleeping dog. Not the same as the C# version.
     unsigned int command;
     int length;
 
@@ -252,14 +249,13 @@ void Serial::handleReadyRead()
     while(true)
     {
         if((requestData[0] & 127) == 'A')
-        {
+        { // if fetch VERSION data
             version = GetVersion(requestData);
             std::clog << "Version: " << version << std::endl;
-//            requestData.remove(0,7);
             requestData.erase(requestData.begin(), requestData.begin()+7);
         }
         else if((requestData[0] & 127) == ARDUINO_GET_SONAR)
-        {
+        {  // if fetch sonar data
             int x = ((int)requestData[3] | (requestData[4] << 7));
             // convert distance to cm
             double dist = (float)((float)x / 29.10f);
@@ -292,7 +288,7 @@ void Serial::handleError()
 
 int Serial::GetVersion(std::vector<byte> buf)
 {
-
+    if(buf.size()<7) throw "Version getting fail\n";
     char b1 = buf[0];
     char b2 = buf[1];
     char b3 = buf[2];
@@ -317,89 +313,90 @@ int Serial::GetVersion(std::vector<byte> buf)
     return version;
 }
 
-//bool Serial::SendPacketOld(std::vector<byte> buffer, int slen, int rlen)
-//{
-//    unsigned int command;
-//    int length;
-//
-//    std::vector<byte> sendData;
-//    int idx = 0;
-//    int crc;
-//    //int high;
-//    // Before CRC
-//    // 131 - Command
-//    //   2 - pin?
-//    // 102 - lsb position
-//    //  11
-//    //   0
-//    //   0
-//    //   0
-//    // 106 - msb position
-//
-//    crc = command = buffer[0];    // Command
-//    length = slen - 2;
-//    if( length < 0 )
-//        length = 0;
-//
-//    sendData[idx++] = (byte) command;
-//    sendData[idx++] = (byte) (length & 127);
-//    crc ^= (byte) (length & 127);
-//
-//    if((command & 127) >= 32)
-//    {
-//        sendData[idx++] = (byte) (length >> 7);
-//        crc ^= (byte) (length >> 7);
-//    }
-//
-//    for(int i = 1; i < slen; i++)
-//    {
-//        sendData[idx++] = buffer[i];
-//        crc ^= buffer[i];
-//    }
-//
-//    sendData[9] = (byte)crc;
-//
-//    // After CRC
-//    // 131 - Command
-//    //   6 - CRC
-//    //   2 - pin
-//    // 102 - lsb position
-//    //  11
-//    //   0
-//    //   0
-//    //   0
-//    // 106
-//    byte sendBuffer_[9];
-//    for (int j = 0; j < 9; ++j) {
-//        sendBuffer_[j] = sendData[j];
-//    }
-//
+bool Serial::SendPacketOld(std::vector<byte> buffer, int slen, int rlen)
+{
+    unsigned int command;
+    int length;
+
+    std::vector<byte> sendData;
+    int idx = 0;
+    int crc;
+    //int high;
+    // Before CRC
+    // 131 - Command
+    //   2 - pin?
+    // 102 - lsb position
+    //  11
+    //   0
+    //   0
+    //   0
+    // 106 - msb position
+
+    crc = command = buffer[0];    // Command
+    length = slen - 2;
+    if( length < 0 )
+        length = 0;
+
+    sendData[idx++] = (byte) command;
+    sendData[idx++] = (byte) (length & 127);
+    crc ^= (byte) (length & 127);
+
+    if((command & 127) >= 32)
+    {
+        sendData[idx++] = (byte) (length >> 7);
+        crc ^= (byte) (length >> 7);
+    }
+
+    for(int i = 1; i < slen; i++)
+    {
+        sendData[idx++] = buffer[i];
+        crc ^= buffer[i];
+    }
+
+    sendData[9] = (byte)crc;
+
+    // After CRC
+    // 131 - Command
+    //   6 - CRC
+    //   2 - pin
+    // 102 - lsb position
+    //  11
+    //   0
+    //   0
+    //   0
+    // 106
+    byte sendBuffer_[9];
+    for (int j = 0; j < 9; ++j) {
+        sendBuffer_[j] = sendData[j];
+    }
+
 //    std::vector<byte> requestData;
-//    if(arduino->isOpen())
-//    {
-//        arduino->write(sendBuffer_,9);
-////        if (!arduino->waitForBytesWritten(waitTimeOut))
-////            return false;
-//
-////        if (arduino->waitForReadyRead(waitTimeOut))
-//        if (arduino->waitReadable())
-//        {
-//            // read request
-//            requestData = arduino->read;  // TODO: fix
-//            //while (arduino->waitForReadyRead(100))
-//            //requestData += arduino->readAll();
-//
-//            if((requestData[0] & 127) == ARDUINO_GET_SONAR)
-//            {
-//                int x = ((int)requestData[3] | (requestData[4] << 7));  // TODO: check
-//                // convert distance to cm
-//                sonarValue = (float)((float)x / 29.10f);
-//            }
-//        }
-//        return true;
-//    }
-//    return false;
-//}
+    std::string requestDataStr;
+    if(arduino->isOpen())
+    {
+        arduino->write(sendBuffer_,9);
+//        if (!arduino->waitForBytesWritten(waitTimeOut))
+//            return false;
+
+        if (arduino->waitReadable())
+        {
+            // read request
+            std::string tmp_str;
+            tmp_str = arduino->readline();
+            requestDataStr += tmp_str;
+            //requestData += arduino->readAll();
+
+            if((requestDataStr[0] & 127) == ARDUINO_GET_SONAR)
+            {
+                int x = ((int)requestDataStr[3] | (requestDataStr[4] << 7));
+                // convert distance to cm
+                sonarValue = (float)((float)x / 29.10f);
+            }
+        }
+        return true;
+    }
+    return false;
+}
 
 //void Serial::ReadOld(std::vector<byte> requestData)
 //{
@@ -422,6 +419,7 @@ int Serial::GetVersion(std::vector<byte> buf)
 
 void Serial::Read_(std::vector<byte> buffer, int len)
 {
+    arduino->waitReadable();
     arduino->read(buffer, len);
 }
 
@@ -450,7 +448,7 @@ void Serial::SetServo(int pin, int value)
 void Serial::SendCommand(int cmd)
 {
     std::vector<byte> buffer;
-    buffer.resize(3);
+    buffer.resize(1);
 
     buffer[0] = (byte)(128 | cmd);
 
@@ -472,8 +470,8 @@ void Serial::SendCommand(int cmd, int pin)
 void Serial::SendCommand(int cmd, int pin, int value)
 {
     std::vector<byte> buffer;
-
     buffer.resize(8);
+
     buffer[0] = (byte)(128 | cmd);
     buffer[1] = (byte)(pin & 127);
     buffer[2] = (byte)(value & 127);
@@ -489,8 +487,8 @@ void Serial::SendCommand(int cmd, int pin, int value)
 void Serial::SendCommand(int cmd, int pin, short value)
 {
     std::vector<byte> buffer;
-
     buffer.resize(5);
+
     buffer[0] = (byte)(128 | cmd);
     buffer[1] = (byte)(pin & 127);
     buffer[2] = (byte)(value & 127);
@@ -503,8 +501,8 @@ void Serial::SendCommand(int cmd, int pin, short value)
 void Serial::SendCommand(int cmd, int pin, byte value)
 {
     std::vector<byte> buffer;
-
     buffer.resize(4);
+
     buffer[0] = (byte)(128 | cmd);
     buffer[1] = (byte)(pin & 127);
     buffer[2] = (byte)(value & 127);
@@ -516,8 +514,8 @@ void Serial::SendCommand(int cmd, int pin, byte value)
 void Serial::SendCommand(int cmd, std::vector<int> dat)
 {
     std::vector<byte> buffer;
-
     buffer.resize(4096);
+
     buffer[0] = (byte)(128 | cmd);
 
     int i, j;
@@ -541,7 +539,7 @@ void Serial::SendCommand(int cmd, std::vector<byte> dat)
 {
     std::vector<byte> buffer;
 
-    buffer.resize(4096);
+    buffer.resize(SEND_QUEUE_MAX);
     buffer[0] = (byte)(128 | cmd);
 
     int i, j;
