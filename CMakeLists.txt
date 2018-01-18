@@ -58,7 +58,7 @@ endif()
 #add_library(${PROJECT_NAME} ${serial_SRCS})
 
 
-set(SOURCE_FILES src/main.cpp src/Serial.cpp)
+set(SOURCE_FILES src/main.cpp src/Serial.cpp src/Robot.cpp include/Robot.h src/Worker.cpp include/Worker.h)
 set(ALL_SOURCE_FILES ${SOURCE_FILES} ${serial_SRCS})
 add_executable(fritz_control ${ALL_SOURCE_FILES})
 
