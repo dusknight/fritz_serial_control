@@ -3,7 +3,7 @@
 
 #ifdef __CYGWIN__
 #define PORT "/dev/ttyS3"
-#elif defined(UNIX)
+#elif defined(__unix__)
 #define PORT "/dev/ttyUSB0"
 #endif
 
