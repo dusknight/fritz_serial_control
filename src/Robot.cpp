@@ -16,7 +16,7 @@ Robot::Robot(Serial *serial) {
     float irValue = 1000.0f;
     float sonarValue = 1000.0f;
 
-    cd = new CalibrationData();
+    cd = new CalibrationData();  // TODO: this is not yet used
 
 //    RobotState * initState = new RobotState();
 
@@ -37,23 +37,23 @@ Robot::Robot(Serial *serial) {
     leftHorizontalEyeMin = -400;
     leftHorizontalEyeMax = 100;
     leftHorizontalEyePin = 4;
-    leftVerticalEyeMin = -200;
-    leftVerticalEyeMax = -300;
+    leftVerticalEyeMin = -300;
+    leftVerticalEyeMax = 300;
     leftVerticalEyePin = 6;  // 5
     rightHorizontalEyeMin = -400;
     rightHorizontalEyeMax = 200;
     rightHorizontalEyePin = 9;
-    rightVerticalEyeMin = -100;
+    rightVerticalEyeMin = -400;
     rightVerticalEyeMax = 200;
     rightVerticalEyePin = 11;  // 10
-    leftLipMin = 100;
+    leftLipMin = -200;
     leftLipMax = 500;
     leftLipPin = 10;  // 6
     rightLipMin = -500;
     rightLipMax = 100;
     rightLipPin = 5;  // 11
     jawMin = -300;
-    jawMax = -100;
+    jawMax = -80;
     jawPin = 14;  // A0; 14
     neckTiltMin = -700;
     neckTiltMax = -450;
@@ -67,11 +67,11 @@ Robot::Robot(Serial *serial) {
     rightEyebrowMin = -180;
     rightEyebrowMax = 180;
     rightEyebrowPin = 7;
-    leftEyelidMin = -150;
+    leftEyelidMin = -175;  // -150
     leftEyelidMax = 400;
     leftEyelidPin = 3;  // 8
     rightEyelidMin = -450;
-    rightEyelidMax = 0;
+    rightEyelidMax = 10;
     rightEyelidPin = 8;  // 3
 
     sonarOutPin = 15;
@@ -79,6 +79,7 @@ Robot::Robot(Serial *serial) {
 
     // Prime the distance sensor
     // GetSonar();
+    this->serial->Open();
 }
 
 Robot::~Robot() {

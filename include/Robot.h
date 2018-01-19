@@ -7,8 +7,7 @@
 
 #include "Serial.h"
 
-class CalibrationData
-{
+class CalibrationData {
 public:
     int leftHorizontalEyeTrim;
     int leftHorizontalEyeMax;
@@ -98,8 +97,7 @@ public:
     explicit CalibrationData();
 };
 
-class RobotState
-{
+class RobotState {
 public:
     float leftHorizontalEye;
     float leftVerticalEye;
@@ -117,8 +115,7 @@ public:
     long position;
     long triggerPosition;
 
-    RobotState()
-    {
+    RobotState() {
         leftHorizontalEye = 0.5f;
         leftVerticalEye = 0.5f;
         rightHorizontalEye = 0.5f;
@@ -136,8 +133,7 @@ public:
         triggerPosition = 0;
     }
 
-    explicit RobotState(bool empty)
-    {
+    explicit RobotState(bool empty) {
         leftHorizontalEye = -1;
         rightHorizontalEye = -1;
         leftVerticalEye = -1;
@@ -155,8 +151,7 @@ public:
         triggerPosition = 0;
     }
 
-    RobotState(const RobotState & r)
-    {
+    RobotState(const RobotState &r) {
         leftHorizontalEye = r.leftHorizontalEye;
         rightHorizontalEye = r.rightHorizontalEye;
         leftVerticalEye = r.leftVerticalEye;
@@ -257,26 +252,38 @@ private:
     int irValue;
     double sonarValue;
 
-    CalibrationData * cd;
+    CalibrationData *cd;
 
-    Serial * serial;
+    Serial *serial;
 
 
 public:
-    explicit Robot(Serial * serial);
+    explicit Robot(Serial *serial);
+
     ~Robot();
 
     void Reset();
+
     double GetSonar();
-    void SetState(int n_leftHorizontalEye, int n_leftVerticalEye, int n_rightHorizontalEye, int n_rightVerticalEye, int n_leftEyebrow, int n_rightEyebrow, int n_rightEyelid, int n_leftEyelid, int n_leftLip, int n_rightLip, int n_jaw, int n_neckTilt, int n_neckTwist);
+
+    void SetState(int n_leftHorizontalEye, int n_leftVerticalEye, int n_rightHorizontalEye, int n_rightVerticalEye,
+                  int n_leftEyebrow, int n_rightEyebrow, int n_rightEyelid, int n_leftEyelid, int n_leftLip,
+                  int n_rightLip, int n_jaw, int n_neckTilt, int n_neckTwist);
+
     void SetExpression(std::string name);
+
     void SetExpression(int e);
+
     void SetExpression();
+
     void SetMouth(std::string shape);
 
     void SetLeft();
+
     void SetCentre();
+
     void SetRight();
+
     void SetNeck(int angle);
 
 //    void SpeakMessage(std::string msg);

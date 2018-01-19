@@ -5,19 +5,6 @@
 #include "Serial.h"
 #include <iostream>
 #include <cmath>
-//#include "serial/serial.h"
-//#include <string>
-//#include <vector>
-//#include <errno.h>
-//#include <fcntl.h>
-//#include <string.h>
-//#include <termios.h>
-//#include <unistd.h>
-//#include <sys/ioctl.h>
-//#include <sys/types.h>
-//#include <sys/time.h>
-//#include <sys/select.h>
-//#include <sched.h>
 
 void convStringVector(const std::string & s, std::vector<byte> & v)
 {
