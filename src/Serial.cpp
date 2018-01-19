@@ -37,7 +37,7 @@ Serial::Serial()
 
     timeout = serial::Timeout(serial::Timeout::max(), readTimeOut, 0, writeTimeOut, 0);
     arduino = new serial::Serial();
-//    arduino->setTimeout(timeout);  // TODO
+    arduino->setTimeout(timeout);  // TODO
 
 //    Open();
 }
@@ -109,8 +109,9 @@ int Serial::Open()
     //connect(arduino, static_cast<void (QSerialPort::*)(QSerialPort::SerialPortError)>(&QSerialPort::error),this, &Serial::handleError);
     //connect(&m_timer, &QTimer::timeout, this, &SerialPortReader::handleTimeout);
 
-    TestSerial();
-
+//    TestSerial();
+    // NOTE: must wait for sometime to get device ready !!!
+    arduino->waitReadable();
     return 0;
 }
 
@@ -142,6 +143,7 @@ int Serial::TestSerial()
 
     std::vector<byte> sendData;
     std::vector<byte> requestData;
+    std::string requestData_str;
 
     sendData.resize(2);
     sendData[0] = (byte)128;
@@ -150,12 +152,7 @@ int Serial::TestSerial()
     if(arduino->isOpen())
     {
         arduino->write(sendData);
-        std::string requestData_str;
-//        arduino->waitReadable();  // must wait for data
         arduino->read(requestData_str,7);
-//        requestData_str = arduino->readline();
-        while(arduino->waitReadable())
-            requestData_str += arduino->readline();
         convStringVector(requestData_str, requestData);
         version = GetVersion(requestData);
     }
