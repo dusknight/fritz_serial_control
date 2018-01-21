@@ -59,8 +59,9 @@ endif()
 
 
 set(SOURCE_FILES src/main.cpp src/Serial.cpp include/Serial.h
-        src/Robot.cpp include/Robot.h src/Worker.cpp include/Worker.h
-        ) #src/Animate.cpp include/Animate.h)
+        src/Robot.cpp include/Robot.h # src/Worker.cpp include/Worker.h
+        src/Animate.cpp include/Animate.h # src/Fritz.cpp src/Fritz.h
+        )
 set(ALL_SOURCE_FILES ${SOURCE_FILES} ${serial_SRCS})
 add_executable(fritz_control ${ALL_SOURCE_FILES})
 
